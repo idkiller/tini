@@ -8,7 +8,7 @@
 namespace tini
 {
 
-const std::string GLOBAL = "___GLOBAL";
+const std::string global = "___GLOBAL";
 
 inline void ltrim(std::string& s)
 {
@@ -83,6 +83,10 @@ inline std::pair<std::string, std::string> get_pair(const std::string& str)
 class ini
 {
   public:
+    using pairs = std::map<std::string, std::string>;
+    ini()
+    {
+    }
     ini(const std::string& str)
     {
       std::istringstream input(str);
@@ -95,29 +99,38 @@ class ini
     inline void init (std::istream &input)
     {
       std::string line;
-      std::string title(GLOBAL);
+      std::string title(global);
       while (std::getline(input, line))
       {
         line = uncomment(line);
         if (line.empty()) continue;
         trim(line);
-        if (get_header(line, title) && Groups.find(title) == Groups.end())
+        if (get_header(line, title) && groups.find(title) == groups.end())
         {
-          Groups[title] = std::map<std::string, std::string>();
+          groups[title] = std::map<std::string, std::string>();
           continue;
         }
 
         auto pair = get_pair(line);
-        Groups[title][pair.first] = pair.second;
+        groups[title][pair.first] = pair.second;
       }
     }
     std::string to_string() const
     {
       std::stringstream str_out;
-      for (auto &groups : Groups)
+      auto gpair = groups.find(global);
+      if (gpair != groups.end())
       {
-        const std::string &title = groups.first;
-        auto &pairs = groups.second;
+        for (auto &pair : gpair->second)
+        {
+          str_out << pair.first << " = " << pair.second << std::endl;
+        }
+      }
+      for (auto &group : groups)
+      {
+        auto &title = group.first;
+        if (title == global) continue;
+        auto &pairs = group.second;
         str_out << '[' << title << ']' << std::endl;
         for (auto &pair : pairs)
         {
@@ -127,7 +140,17 @@ class ini
 
       return str_out.str();
     }
-    std::map<std::string, std::map<std::string, std::string> > Groups;
+
+    pairs& operator [](const std::string& group_name)
+    {
+      if (groups.find(group_name) == groups.end())
+      {
+        groups[group_name] = pairs();
+      }
+      return groups[group_name];
+    }
+
+    std::map<std::string, pairs> groups;
 };
 
 std::ostream& operator << (std::ostream& os, const ini& rhs)
